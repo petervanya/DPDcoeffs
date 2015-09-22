@@ -30,44 +30,45 @@ def read_outfile(outfile):
     A = np.array(A, order="F").astype(float)
     return A
 
-def get_one_rdf(mat, dr=0.05):
-    """Compute pair correl'n fcn from the xyz matrix"""
-    N = len(mat)
+
+def save_data(vec1, vec2, outfile):
+    """Save two vectors into file"""
+    with open(outfile, "w") as f:
+        for i in range(len(vec1)):
+            f.write(str(vec1[i]) + "\t" + str(vec2[i]) + "\n")
+
+
+def get_one_rdf(outfile, dr=0.05):
+    """Compute radial dist'n fcn from the xyz matrix"""
+    A = read_outfile(outfile)
+    xyz_mat = A[:, 1:]
+    N = len(xyz_mat)
     Npairs = N*(N-1)/2
 #    d = np.zeros(Npairs)
 #    here = 0
 #    for i in range(N):
 #        for j in range(i+1, N):
-#            d[here] = norm(mat[i] - mat[j])
+#            d[here] = norm(xyz_mat[i] - xyz_mat[j])
 #            here += 1
-    d = mat_ops.get_pair_dist(mat)
+    d = mat_ops.get_pair_dist(xyz_mat)
 
-    bins = np.arange(0, 10+dr, dr)         # assume box size is 10
-    (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless
+    bins = np.arange(0, 10+dr, dr)            # assume box size is 10
+    (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless but necess to incl
     r = r[:-1] + np.diff(r)/2
     rdf = rdf_raw/(4*pi*r**2*dr)
     return r, rdf
 
 
-def get_master_rdf(outfiles, N):
+def get_master_rdf(outfiles, dr=0.05):
     """Construct an rdf from all the available xyz files"""
     Nfiles = len(outfiles)
-    Npairs = N*(N-1)/2
-#    rdf_mat = np.zeros((Npairs, Nfiles))
     rdf_mat = []
-    for i in range(Nfiles):
-        A = read_outfile(outfiles[i])
-        r, rdf_i = get_one_rdf(A[:, 1:])
+    for file in outfiles:
+        r, rdf_i = get_one_rdf(file, dr)
         rdf_mat.append(rdf_i)
-        print outfiles[i], "done"
+        print file, "done"
     rdf = np.sum(np.array(rdf_mat), 0)/len(outfiles)
     return r, rdf
-
-
-def save_data(vec1, vec2, outfile):
-    with open(outfile, "w") as f:
-        for i in range(len(vec1)):
-            f.write(str(vec1[i]) + "\t" + str(vec2[i]) + "\n")
 
 
 if __name__ == "__main__":
@@ -79,10 +80,7 @@ if __name__ == "__main__":
     Nfiles = len(outfiles)
     N = int(open(outfiles[0], "r").readline())
     print "Particles:", N
-    
-    r, vals = get_master_rdf(outfiles, N)
-#    A = read_outfile(outfiles[0])
-#    r, vals = get_one_rdf(A[:, 1:], dr=dr)
+    r, vals = get_master_rdf(outfiles[7:8], dr)
 
     plt.cla()
     plt.plot(r, vals)
