@@ -3,5 +3,6 @@
 *.txt
 *.png
 *.so
+*.out
 Runs/
 Old/
