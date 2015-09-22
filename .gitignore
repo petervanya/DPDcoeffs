@@ -1,5 +1,7 @@
 *.pyc
 *~
 *.txt
+*.png
+*.so
 Runs/
 Old/
