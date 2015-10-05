@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """Usage:
-    rdf.py <fnames> [--beads <p>] [--binsize <bs>] [--picname <pn>]
+    rdf.py gen_data <fnames> [--beads <b>] [--binsize <bs>] [--picname <pn>]
+    rdf.py plot <fnames>
 
 Read all LAMMPS data files in the directory and compute the pair correlation function.
-Produce a histogram plot and save data into rdf.out.
 Uses Fortran routines from mat_ops.f95 produced with f2py.
+* gen_data  generate the histogram of distances and save it in rdf.out
+* plot      plot rdf.out
 
 Arguments:
     <fnames>         Regex for all the required xyz files
@@ -20,9 +22,9 @@ import numpy as np
 from numpy.linalg import norm
 import matplotlib.pyplot as plt
 from math import pi
-import os, glob, time
+import os, glob
 from docopt import docopt
-import mat_ops
+import mat_ops           # Fortran .so file
 
 def read_outfile(outfile):
     """Read one xyz outfile into a numpy matrix"""
@@ -43,14 +45,14 @@ def save_data(outfile, *args): #vec1, vec2):
                 line += str(args[i][j]) + "\t"
             line += "\n"
             f.write(line)
-#        for i in range(len(vec1)):
-#            f.write(str([i]) + "\t" + str(vec2[i]) + "\n")
 
 
 def plot_hist(r, vals, picname="hist.png", title="title"):
     """Plot a rdf function from given values"""
     plt.clf()
     plt.plot(r, vals)
+    ymax = np.max(vals[1:])*1.2/200*200     # round to 200
+    plt.ylim([0, ymax])
     plt.xlabel("$r$ (DPD units)")
     plt.ylabel("$g(r)$")
     plt.title(title)
@@ -58,22 +60,37 @@ def plot_hist(r, vals, picname="hist.png", title="title"):
     print "rdf saved into", picname
 
 
-def get_one_rdf(outfile, dr=0.05, bead_type="all"):
-    """Compute radial dist'n fcn from the xyz matrix"""
+def get_one_rdf_old(outfile, dr=0.05, bead_type="all"):
+    """Compute radial dist'n fcn from the xyz matrix using Python"""
     A = read_outfile(outfile)
     if bead_type == "all":
         xyz_mat = A[:, 1:]
     else:
         xyz_mat = A[A[:, 0] == int(bead_type)][:, 1:]
     N = len(xyz_mat)
-#    Npairs = N*(N-1)/2
-#    d = np.zeros(Npairs)
-#    here = 0
-#    for i in range(N):
-#        for j in range(i+1, N):
-#            d[here] = norm(xyz_mat[i] - xyz_mat[j])
-#            here += 1
-    d = mat_ops.get_pair_dist(xyz_mat)
+    Npairs = N*(N-1)/2
+    d = np.zeros(Npairs)
+    here = 0
+    for i in range(N):
+        for j in range(i+1, N):
+            d[here] = norm(xyz_mat[i] - xyz_mat[j])
+            here += 1
+    bins = np.arange(0, 10+dr, dr)            # assume box size is 10
+    (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless here
+    r = r[:-1] + np.diff(r)/2.0
+    rdf = rdf_raw/(4*pi*r**2*dr)
+    return r, rdf
+
+
+def get_one_rdf(outfile, dr=0.05, bead_type="all"):
+    """Compute radial dist'n fcn from the xyz matrix using Fortran routine"""
+    A = read_outfile(outfile)
+    if bead_type == "all":
+        xyz_mat = A[:, 1:]
+    else:
+        xyz_mat = A[A[:, 0] == int(bead_type)][:, 1:]
+    N = len(xyz_mat)
+    d = mat_ops.get_pair_dist(xyz_mat)        # call Fortran
 
     bins = np.arange(0, 10+dr, dr)            # assume box size is 10
     (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless here
@@ -99,17 +116,27 @@ def get_master_rdf(outfiles, dr=0.05, bead_type="all"):
 if __name__ == "__main__":
     args = docopt(__doc__)
 #    print args
-    dr = float(args["--binsize"])
-    bead_type = args["--beads"]
-    outfiles = glob.glob(args["<fnames>"])
-    print outfiles
-    Nfiles = len(outfiles)
-    N = int(open(outfiles[0], "r").readline())
-    print "Particles:", N
-    r, vals = get_master_rdf(outfiles, dr, bead_type)
+    if args["gen_data"]:
+        dr = float(args["--binsize"])
+        bead_type = args["--beads"]
+        outfiles = glob.glob(args["<fnames>"])
+        print outfiles
+        Nfiles = len(outfiles)
+        N = int(open(outfiles[0], "r").readline())
+        print "Particles:", N
+        r, vals = get_master_rdf(outfiles, dr, bead_type)
+        save_data("rdf_" + bead_type + ".out", r, vals)
 
-    save_data("rdf_" + bead_type + ".out", r, vals)
-    title = "beads " + bead_type
-    picname = args["--picname"] + "_" + bead_type + ".png"
-    plot_hist(r, vals, picname, title=title)
+    elif args["plot"]:   # reads rdf.out and creates histograms
+        outfiles = glob.glob(args["<fnames>"])
+        for outfile in outfiles:
+            A = np.loadtxt(outfile)
+            r, vals = A[:, 0], A[:, 1]
+            outfile = outfile[:-4]
+            bead_type = outfile.split("_")[1]    # "all", "1", etc
+            dirname = "_".join(outfile.split("_")[2:])
+            picname = args["--picname"] + "_" + bead_type + "_" + dirname + ".png"
+            title = "beads " + bead_type
+            plot_hist(r, vals, picname, title=title)
+        
 
