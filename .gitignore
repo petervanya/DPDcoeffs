@@ -7,3 +7,8 @@
 Runs/
 Old/
 Logs/
+combine.py
+filter_unrun.py
+get_distances.py
+quickplot.py
+run_g09.sh
