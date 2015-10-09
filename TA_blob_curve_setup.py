@@ -42,7 +42,6 @@ try:
     pos = args["<position>"]
 except int(pos) not in range(1, 7):
     print "Position numbers are 1...6"
-print "pos:", pos, type(pos)
 maindir = os.path.expanduser("~/DPDcoeffs/TA_WaterBlob")
 blobdir = os.path.expanduser("~/DPDcoeffs/Files/Waterblobs")
 blobnum = args["--blobnum"]   # blob number used, default is 0
