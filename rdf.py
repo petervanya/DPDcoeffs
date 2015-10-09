@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """Usage:
-    rdf.py gen_data <fnames> [--beads <b>] [--binsize <bs>] [--picname <pn>]
-    rdf.py plot <fnames>
+    rdf.py gen_data <fnames> [--beads <b>] [--binsize <bs>]
+    rdf.py plot hist <fnames> [--picname <pn>]
+    rdf.py plot deriv2 <fnames> [--smooth <sm>]
 
 Read all LAMMPS data files in the directory and compute the pair correlation function.
 Uses Fortran routines from mat_ops.f95 produced with f2py.
@@ -13,13 +14,15 @@ Arguments:
 
 Options:
     --binsize <bs>   Size of the bins for the histogram [default: 0.05]
-    --picname <pn>   Name of the histogram plot [default: hist]
+    --picname <pn>   DEPRECATED Name of the histogram plot [default: hist]
     --beads <b>      Bead type, 'all' or 1,...,n [default: all]
+    --smooth <sm>    Smooth the data with a given span [default: 5]
 
 pv278@cam.ac.uk, 02/09/15
 """
 import numpy as np
 from numpy.linalg import norm
+import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 from math import pi
 import os, glob
@@ -47,17 +50,50 @@ def save_data(outfile, *args): #vec1, vec2):
             f.write(line)
 
 
-def plot_hist(r, vals, picname="hist.png", title="title"):
+def plot_hist(r, vals, picname="hist.png", title="title", which="all", ymax=1000):
     """Plot a rdf function from given values"""
     plt.clf()
     plt.plot(r, vals)
-    ymax = np.max(vals[1:])*1.2/200*200     # round to 200
     plt.ylim([0, ymax])
     plt.xlabel("$r$ (DPD units)")
     plt.ylabel("$g(r)$")
     plt.title(title)
     plt.savefig(picname)
     print "rdf saved into", picname
+
+
+def plot_deriv2(r, vals, picname="deriv2.png", title="title", which="all"):
+    """Plot a 2nd derivative rdf function"""
+    plt.clf()
+    plt.plot(r, vals)
+    plt.xlabel("$r$ (DPD units)")
+    plt.title(title)
+    plt.savefig(picname)
+    print "2nd derivative saved into", picname
+
+
+def smooth(data, span=5):
+    """Same as MATLAB smooth(data)"""
+    N = len(data)
+    data2 = np.zeros(N)
+    n = (span-1)/2
+    for i in range(n):
+        data2[i] = sum(data[0:2*i+1])/(2*i+1)
+        data2[N-1-i] = sum(data[N-(2*i+1):N])/(2*i+1)
+    for i in range(n, N-n):
+        data2[i] = sum(data[i-n:i+n+1])/span
+    return data2
+
+
+def deriv2(data, h=0.1):
+    """Return array of 2nd derivatives"""
+    N = len(data)
+    data2 = np.zeros(N)
+    data2[0] = (data[2] - 2*data[1] + data[0])/h**2
+    data2[N-1] = (data[N-1] - 2*data[N-2] + data[N-3])/h**2
+    for i in range(1, N-1):
+        data2[i] = (data[i+1] - 2*data[i] + data[i-1])/h**2
+    return data2
 
 
 def get_one_rdf_old(outfile, dr=0.05, bead_type="all"):
@@ -127,16 +163,49 @@ if __name__ == "__main__":
         r, vals = get_master_rdf(outfiles, dr, bead_type)
         save_data("rdf_" + bead_type + ".out", r, vals)
 
-    elif args["plot"]:   # reads rdf.out and creates histograms
+    elif args["plot"] and args["hist"]:   # reads rdf.out and creates histograms
         outfiles = glob.glob(args["<fnames>"])
         for outfile in outfiles:
             A = np.loadtxt(outfile)
             r, vals = A[:, 0], A[:, 1]
             outfile = outfile[:-4]
             bead_type = outfile.split("_")[1]    # "all", "1", etc
+            fA = int(outfile.split("_")[3])
+            if bead_type == "1":                  # set ymax in advance
+                ymax = fA/10.0*4000
+            elif bead_type == "2":    # OPTIMISE THIS!
+                ymax = (10.0-fA)/10.0*4000
+            elif bead_type == "all":
+                ymax = 10000
+
             dirname = "_".join(outfile.split("_")[2:])
-            picname = args["--picname"] + "_" + bead_type + "_" + dirname + ".png"
+            picname = "hist_" + bead_type + "_" + dirname + ".png"
             title = "beads " + bead_type
-            plot_hist(r, vals, picname, title=title)
+#            span = int(args["--smooth"])
+#            assert (span-1)%2 == 0     # has to be odd number
+#            vals = smooth(vals, span=span)
+            plot_hist(r, vals, picname, title=title, which=bead_type, ymax=ymax)
+
+    elif args["plot"] and args["deriv2"]:   # reads rdf.out and plots 2nd derivative of histograms
+        outfiles = glob.glob(args["<fnames>"])
+        print outfiles
+        for outfile in outfiles:
+            A = np.loadtxt(outfile)
+            r, vals = A[:, 0], A[:, 1]
+            outfile = outfile[:-4]
+            bead_type = outfile.split("_")[1]    # "all", "1", etc
+            dirname = "_".join(outfile.split("_")[2:])
+            picname = "deriv2_" + bead_type + "_" + dirname + ".png"
+            title = "beads " + bead_type
+
+            span = int(args["--smooth"])
+            assert (span-1)%2 == 0     # has to be odd number
+            vals = smooth(vals, span=span)
+
+            h = r[1] - r[0]
+            vals2der = deriv2(vals, h)
+
+            N = len(r)
+            plot_deriv2(r[N/20:], vals2der[N/20:], picname, title=title, which=bead_type)
         
 
