@@ -1,18 +1,24 @@
 #!/usr/bin/env python
 """Usage:
-    order_param.py <systems> <rc> [--save]
+    order_param.py calc <systems> <rc> [--save <fname>]
+    order_param.py plot <file>
 
-Calculate the order parameter for a binary mixture PT, defined as
-the number of AB contacts divited by number of AA and BB contacts 
-in a given cutoff distance rc.
-For <files> enter multiple xyz screenshots of a MD simulation.
+Calculate the order parameter for a binary mixture phase transition
+(number of AB contacts divited by number of AA plus BB contacts
+in a given cutoff distance rc).
 
 Arguments:
+    <systems>       The bin. mixture systems stored in dirs e.g. fA_0.1_AB_4.0, use regex
     <rc>            Cutoff distance in which to consider pairing
+
+Options:
+    --save <fname>  Save the final op matrix into file [default: temp.out]
 
 pv278@cam.ac.uk, 12/10/15
 """
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import os, sys, glob
 from docopt import docopt
 import mat_ops
@@ -49,36 +55,57 @@ def get_average_op(outfiles, rc):
     return np.average(order_params)
 
 
+def savemat(mat, fname):
+    m, n = mat.shape
+    with open(fname, "w") as f:
+        for i in range(m):
+            for j in range(n):
+                f.write(str(mat[i, j]) + "\t")
+            f.write("\n")
+    print "Matrix written in file", fname
+
+
 def pipeline_old(outfiles, rc):
-    """From the outfiles extract the order param and print it"""
+    """(Old working of this script)
+    From the outfiles extract the order param and print it"""
     print get_average_op(outfiles, rc)
 
 
 if __name__ == "__main__":
     args = docopt(__doc__)
-#    print args
-    rc = float(args["<rc>"])
-#    outfiles = glob.glob(args["<files>"])
+    print args
 
-    systems = glob.glob(args["<systems>"])
-#    print systems
-    fAs = list(set([float(system.split("_")[1]) for system in systems]))
-    ABs = list(set([float(system.split("_")[3]) for system in systems]))
-    fAs.sort()
-    ABs.sort()
-    print fAs, ABs
+    if args["calc"]:
+        rc = float(args["<rc>"])
+##       outfiles = glob.glob(args["<files>"])
+        systems = glob.glob(args["<systems>"])
+##       print systems
+        fAs = list(set([float(system.split("_")[1]) for system in systems]))
+        ABs = list(set([float(system.split("_")[3]) for system in systems]))
+        fAs.sort()
+        ABs.sort()
+        print fAs, "\n", np.array([ABs]).T
+ 
+        op_mat = np.zeros((len(ABs), len(fAs)))
+        for i in range(len(ABs)):
+            for j in range(len(fAs)):
+##               print fAs[j], ABs[i]
+                system = "fA_" + str(fAs[j]) + "_AB_" + str(ABs[i])
+                path = os.path.join(os.path.expanduser("~/DPDcoeffs/BinMixt"), system, "Dump/dump*00.xyz")
+                xyzfiles = glob.glob(path)
+                op_mat[i, j] = get_average_op(xyzfiles, rc)
+ 
+        if args["--save"]:
+            savemat(op_mat, args["--save"])
+        else:
+            print op_mat
 
-    op_mat = np.zeros((len(ABs), len(fAs)))
-    for i in range(len(fAs)):
-        for j in range(len(ABs)):
-            print fAs[i], ABs[j]
-            system = "fA_" + str(fAs[i]) + "_AB_" + str(ABs[j])
-            path = os.path.join(os.path.expanduser("~/DPDcoeffs/BinMixt"), system, "Dump/dump*00.xyz")
-            xyzfiles = glob.glob(path)
-            op_mat[j, i] = get_average_op(xyzfiles, rc)
+    elif args["plot"]:
+        data = np.loadtxt(args["<file>"])
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        Axed3D.plot_surface(data)
+        plt.show()
 
-    if args["--save"]:
-        savemat(op_mat, "op_all_" + str(rc) + ".out")
-    else:
-        print op_mat
+
 
