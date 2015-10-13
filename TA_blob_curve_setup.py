@@ -41,7 +41,8 @@ args = docopt(__doc__)
 try:
     pos = args["<position>"]
 except int(pos) not in range(1, 7):
-    print "Position numbers are 1...6"
+    print "Allowed position numbers are 1...6, see README."
+    sys.exit()
 maindir = os.path.expanduser("~/DPDcoeffs/TA_WaterBlob")
 blobdir = os.path.expanduser("~/DPDcoeffs/Files/Waterblobs")
 blobnum = args["--blobnum"]   # blob number used, default is 0
@@ -65,23 +66,16 @@ if not os.path.exists(outdir):
 if pos == "1":       # above C
     Drange += Ccoord[2]  # shift by z-coord
     Drange = Drange.round(2)
-    theta, phi = pi/2.0, 0.0
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 elif pos == "2":     # below S
     theta, phi = -pi/2.0, 0.0
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 elif pos == "3":     # towards H
     theta, phi = 0.0, 0.0
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 elif pos == "4":     # opposite H
     theta, phi = 0.0, pi
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 elif pos == "5":     # towards O w/o H
     theta, phi = 0.0, pi/3.0
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 elif pos == "6":     # between O w/ H and O w/o H
     theta, phi = 0.0, 2*pi/3.0
-    save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 
-     
+save_configs(triflic, blob, Drange, theta, phi, outdir, blobnum)
 
