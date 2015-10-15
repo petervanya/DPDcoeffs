@@ -4,6 +4,7 @@
 *.png
 *.so
 *.out
+*.log
 Runs/
 Old/
 Logs/
