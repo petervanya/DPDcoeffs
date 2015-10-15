@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    TA_blob_curve_setup.py <position> <dmin> <dmax> <N> [--blobnum <bn>]
+    TA_blob_curve_setup.py <position> <dmin> <dmax> <delta> [--blobnum <bn>] [--counterpoise]
 
 [AD HOC] Generate gjf files of one water blob on triflic acid
 
@@ -8,7 +8,7 @@ Arguments:
     <position>   Where on TA is the blob placed TA (number 1..6, see README)
     <dmin>       Minimum distance of two blobs
     <dmax>       Maximum distance of two blobs
-    <N>          Number of points in between
+    <delta>      Distance between successive points
 
 Options:
     --blobnum <bn>   Which blob to use [default: 0]
@@ -47,25 +47,32 @@ maindir = os.path.expanduser("~/DPDcoeffs/TA_WaterBlob")
 blobdir = os.path.expanduser("~/DPDcoeffs/Files/Waterblobs")
 blobnum = args["--blobnum"]   # blob number used, default is 0
 blobfile = os.path.join(blobdir, "waterblob_" + blobnum + ".xyz")
+outdir = maindir + "/Pos_" + pos
+
 blob = Atoms().read(blobfile)
 blob.shift_com()
-
 triflic = Atoms().read(os.path.expanduser("~/DPDcoeffs/Files/triflic.xyz"))
-Ccoord = triflic.coords[[i for i, x in enumerate(triflic.names) if x == "C"][0]]
 
-Dmin = float(args["<dmin>"])
-Dmax = float(args["<dmax>"])
-N = int(args["<N>"])
-Drange = np.linspace(Dmin, Dmax, N).round(2)
-print "Range of distances: ", Drange
+if args["--counterpoise"]:
+    triflic.names = [i + "(fragment=1)" for i in triflic.names]
+    blob.names = [i + "(fragment=2)" for i in blob.names]
+    outdir = maindir + "/Pos_" + pos + "_CP"
 
-outdir = os.path.join(maindir, "Pos_" + pos)
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
+Dmin = float(args["<dmin>"])
+Dmax = float(args["<dmax>"])
+delta = float(args["<delta>"])
+Drange = np.arange(Dmin, Dmax, delta).round(2)
+print "Range of distances: ", Drange
+
+
 if pos == "1":       # above C
+    Ccoord = triflic.coords[[i for i, x in enumerate(triflic.names) if x[0] == "C"][0]]
     Drange += Ccoord[2]  # shift by z-coord
     Drange = Drange.round(2)
+    theta, phi = pi/2.0, 0.0
 elif pos == "2":     # below S
     theta, phi = -pi/2.0, 0.0
 elif pos == "3":     # towards H
