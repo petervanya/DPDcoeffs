@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """Usage:
-    order_param.py calc <systems> <rc> [--save <fname>] [--print]
+    order_param.py calc <systems> <rc> [--save <fname>] [--gnuplot]
     order_param.py plot <file>
 
 Calculate the order parameter for a binary mixture phase transition
 (number of AB contacts divited by number of AA plus BB contacts
-in a given cutoff distance rc).
+in a given cutoff distance rc). 
+Look for fA_*_AB_* dirs and collect all the dump files of the form "Dump/dump*.xyz".
 
 Arguments:
     <systems>       The bin. mixture systems stored in dirs e.g. fA_0.1_AB_4.0, use regex
@@ -13,6 +14,7 @@ Arguments:
 
 Options:
     --save <fname>  Save the final op matrix into file [default: temp.out]
+    --gnuplot       Print in Gnuplot data format
 
 pv278@cam.ac.uk, 12/10/15
 """
@@ -43,7 +45,7 @@ def save_matrix(mat, fname):
 
 
 def get_op(xyz_mat, rc):
-    """Get number of 'contacts' between beads"""
+    """Get number of 'contacts' between beads, DEPRECATED"""
     AB, AA, BB = 0, 0, 0
     N = len(xyz_mat)
     arr = mat_ops.get_pair_dist2(xyz_mat)        # call Fortran
@@ -64,17 +66,10 @@ def get_average_op(dumpfiles, rc, fA):
 #        order_params.append(get_op(A, rc))                # common sense, NOT GOOD
 #        order_params.append(mat_ops.get_local_op(A, rc))   # Goyal thesis, calling Fortran
         n1, n2 = mat_ops.get_local_op2(A, rc)               # Goyal thesis, alternative call
-        n1 = n1/fA
-        n2 = n2/(1-fA)
+        n1, n2 = n1/fA, n2/(1-fA)                           # rescale to make sense
         op = float(np.dot(n1-n2, n1-n2))/np.dot(n1+n2, n1+n2)
         order_params.append(op)
     return np.average(order_params)
-
-
-def pipeline_old(dumpfiles, rc):
-    """(Old working of this script)
-    From the dumpfiles extract the order param and print it"""
-    print get_average_op(dumpfiles, rc)
 
 
 if __name__ == "__main__":
@@ -84,8 +79,8 @@ if __name__ == "__main__":
     if args["calc"]:
         rc = float(args["<rc>"])
         systems = glob.glob(args["<systems>"])
-        fAs = list(set([float(system.split("_")[1]) for system in systems]))
-        ABs = list(set([float(system.split("_")[3]) for system in systems]))
+        fAs = list(set([float(system.split("/")[0].split("_")[1]) for system in systems]))
+        ABs = list(set([float(system.split("/")[0].split("_")[3]) for system in systems]))
         fAs.sort()
         ABs.sort()
         print fAs, "\n", ABs
@@ -94,19 +89,19 @@ if __name__ == "__main__":
         for i in range(len(ABs)):
             for j in range(len(fAs)):
                 system = "fA_" + str(fAs[j]) + "_AB_" + str(ABs[i])
-                path = os.path.join(os.path.expanduser("~/DPDcoeffs/BinMixt"), system, "Dump/dump*00.xyz")
+                path = os.path.join(os.path.expanduser("~/DPDcoeffs/BinMixt2"),\
+                       system, "Dump/dump9?00.xyz")  # MAKE THIS REGEX CMD LN OPTION
                 xyzfiles = glob.glob(path)
                 op_mat[i, j] = get_average_op(xyzfiles, rc, fAs[j])
+                if args["--gnuplot"]:
+                    print ABs[i], fAs[j], op_mat[i, j]
         save_matrix(op_mat, args["--save"])
-        if args["--print"]:
-            print op_mat
 
-    elif args["plot"]:
+    elif args["plot"]:   # NOT TESTED YET
         data = np.loadtxt(args["<file>"])
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         Axes3D.plot_surface(data)
         plt.show()
-
 
 
