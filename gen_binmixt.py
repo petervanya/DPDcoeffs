@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    gen_binmixt.py <N> <f> <L> [--AB <AB>] [--sigma <c>] [--save <fname>]
+    gen_binmixt.py <N> <f> [--AB <AB>] [--L <L>] [--m <m>] [--sigma <c>] [--save <fname>]
 
 [AD HOC] create randomly N atoms of 2 types in a box of size 10x10x10
 for LAMMPS simulation, atom_style atomic
@@ -8,10 +8,11 @@ for LAMMPS simulation, atom_style atomic
 Arguments:
     <N>              Polymerisation (# of monomers)
     <f>              Fraction of A monomers
-    <L>              Box size
 
 Options:
     --AB <AB>        Interaction between different particle types [default: 1.0]
+    --L <L>          Box size [default: 10]
+    --m <m>          Mass [default: 1.0]
     --sigma <c>      Cutoff for LJ potential [default: 3.0]
     --save <fname>   Save into file
 
@@ -67,17 +68,17 @@ def atoms_to_str(types, pos):
 
 if __name__ == "__main__":
     args = docopt(__doc__)
-    print args
     N = int(args["<N>"])
     f = float(args["<f>"])
-    L = float(args["<L>"])
     AB = float(args["--AB"])
+    L = float(args["--L"])
+    m = float(args["--m"])
     sigma = float(args["--sigma"])
 
     types, pos = get_pos(N, f, L)
     header = get_header(N, L)
     final_string = header + \
-                   get_masses(1.0, 1.0) + \
+                   get_masses(m, m) + \
                    get_pair_coeffs(1.0, 1.0, AB, sigma) + \
                    atoms_to_str(types, pos)
 
