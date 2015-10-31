@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 """Usage:
-    TA_blob_curve_setup.py <position> <dmin> <dmax> <delta> [--blobnum <bn>] [--counterpoise]
+    TA_blob_curve_setup.py --pos <pos> <dmin> <dmax> <delta> [--blobnum <bn>] [--counterpoise]
 
 [AD HOC] Generate gjf files of one water blob on triflic acid
 
 Arguments:
-    <position>   Where on TA is the blob placed TA (number 1..6, see README)
+    <pos>        Where on TA is the blob placed TA (number 1..6, see README.md)
     <dmin>       Minimum distance of two blobs
     <dmax>       Maximum distance of two blobs
     <delta>      Distance between successive points
@@ -39,7 +39,7 @@ def save_configs(TA, blob, Drange, theta, phi, outdir, blobnum="0"):
 args = docopt(__doc__)
 #print args
 try:
-    pos = args["<position>"]
+    pos = args["<pos>"]
 except int(pos) not in range(1, 7):
     print "Allowed position numbers are 1...6, see README."
     sys.exit()
@@ -65,8 +65,7 @@ Dmin = float(args["<dmin>"])
 Dmax = float(args["<dmax>"])
 delta = float(args["<delta>"])
 Drange = np.arange(Dmin, Dmax, delta).round(2)
-print "Range of distances: ", Drange
-
+print "Blob position:", pos, "\nDistances: ", Drange
 
 if pos == "1":       # above C
     Ccoord = triflic.coords[[i for i, x in enumerate(triflic.names) if x[0] == "C"][0]]
