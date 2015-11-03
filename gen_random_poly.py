@@ -67,11 +67,13 @@ def get_bond_mat(N1, N2):
 
 
 # ===== printing to string
-def get_header(N, L):
+def get_header(N, Nbonds, L):
     """Generate LAMMPS header"""
     s = "#blabla\n"
     s += str(N) + " atoms\n"
+    s += str(Nbonds) + "bonds\n"
     s += "2 atom types\n"
+    s += "1 bond types\n"
     s += "\n"
     s += "0.0 " + str(L) + " xlo xhi\n"
     s += "0.0 " + str(L) + " ylo yhi\n"
@@ -176,7 +178,7 @@ if __name__ == "__main__":
         bonds_mat = get_bond_mat(N*(i-1) + 1, N*i)
         final_bonds_str += bonds_to_str(bonds_mat)
 
-    final_string = get_header(N*n, L) + \
+    final_string = get_header(N*n, n*(N-1), L) + \
                    get_masses(m, m) + \
                    get_pair_coeffs_DPD(FAA, FAA, FAB) + \
                    "Atoms\n\n" + final_atoms_str + \
