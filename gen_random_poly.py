@@ -50,9 +50,22 @@ def get_pos_mess2(n, N, f=0.5, L=10):
     return np.hstack((mol_ids, atom_type, pos))
 
 
-def gen_pos_grow(N, f=0.1, L=10, mol_num=1):
-    """FILL"""
-    pass
+def get_pos_grow(n, N, f=0.5, L=10, mu=1.0, sigma=0.1):
+    """
+    For each polymer string
+    1. generate first bead
+    2. grow the next beads one by one homogenously
+    """
+    atom_type = np.matrix( ([1]*int(f*N) + [2]*int((1-f)*N))*n ).T
+    mol_ids = [[i]*N for i in range(1, n+1)]
+    pos = np.zeros((n*N, 3))
+    for j in range(0, n):
+        pos[j*N] = np.random.randn(3)  # first bead in a string
+        for i in range(j*N + 1, (j+1)*N):
+            pos[i] = pos[i-1] + np.random.randn(3)*sigma + mu
+    mol_ids = [[i]*N for i in range(1, n+1)]
+    mol_ids = np.matrix([item for sublist in mol_ids for item in sublist]).T
+    return np.hstack((mol_ids, atom_type, pos))
 
 
 def get_bond_mat(N1, N2):
@@ -71,7 +84,7 @@ def get_header(N, Nbonds, L):
     """Generate LAMMPS header"""
     s = "#blabla\n"
     s += str(N) + " atoms\n"
-    s += str(Nbonds) + "bonds\n"
+    s += str(Nbonds) + " bonds\n"
     s += "2 atom types\n"
     s += "1 bond types\n"
     s += "\n"
@@ -172,6 +185,8 @@ if __name__ == "__main__":
     elif args["--grow"]:
         mu = float(args["<mu>"])
         sigma = float(args["<sigma>"])
+        atoms_mat = get_pos_grow(n, N, f, L, mu, sigma)
+        final_atoms_str += atoms_to_str2(atoms_mat)
     final_atoms_str += "\n"
 
     for i in range(1, n+1):  # loop through mol_ids
