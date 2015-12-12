@@ -25,7 +25,7 @@ from numpy.linalg import norm
 import scipy.ndimage as ndimage
 import matplotlib.pyplot as plt
 from math import pi
-import os, glob
+import os, glob, sys
 from docopt import docopt
 import mat_ops           # Fortran .so file
 
@@ -125,11 +125,14 @@ def get_one_rdf(outfile, dr=0.05, bead_type="all"):
         xyz_mat = A[:, 1:]
     else:
         xyz_mat = A[A[:, 0] == int(bead_type)][:, 1:]
+    max_num = np.max(xyz_mat)
+    if dr > max_num:
+        print "WARNING: Bin size larger that box size: %e vs %e" % (dr, max_num)
     N = len(xyz_mat)
     d = mat_ops.get_pair_dist(xyz_mat)        # call Fortran
-
-    bins = np.arange(0, 10+dr, dr)            # assume box size is 10
-    (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless here
+    print "Fortran routine done."
+    bins = np.arange(0, max_num+dr, dr)       # take box size as max entry of A
+    rdf_raw, r = np.histogram(d, bins=bins)
     r = r[:-1] + np.diff(r)/2.0
     rdf = rdf_raw/(4*pi*r**2*dr)
     return r, rdf
@@ -145,6 +148,7 @@ def get_master_rdf(outfiles, dr=0.05, bead_type="all"):
         print outfile, "done"
     rdf_mat = np.array(rdf_mat).T
     np.savetxt("rdf_mat.out", rdf_mat, fmt="%.0f", delimiter="\t")
+    print "rdf matrix saved in rdf_mat.out"
     rdf = np.array(np.sum(rdf_mat, 1)/len(outfiles))
     return r, rdf
 
@@ -156,12 +160,17 @@ if __name__ == "__main__":
         dr = float(args["--binsize"])
         bead_type = args["--beads"]
         outfiles = glob.glob(args["<fnames>"])
+        if len(outfiles) == 0:
+            print "ERROR: No xyz files found. Aborting."
+            sys.exit()
         print outfiles
         Nfiles = len(outfiles)
         N = int(open(outfiles[0], "r").readline())
-        print "Particles:", N
+        print "Total particles:", N
         r, vals = get_master_rdf(outfiles, dr, bead_type)
-        save_data("rdf_" + bead_type + ".out", r, vals)
+        fname = "rdf_" + bead_type + ".out"
+        save_data(fname, r, vals)
+        print "rdf saved in", fname
 
     elif args["plot"] and args["hist"]:   # reads rdf.out and creates histograms
         outfiles = glob.glob(args["<fnames>"])
