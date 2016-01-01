@@ -13,8 +13,7 @@ Arguments:
     <fnames>         Regex for all the required xyz files
 
 Options:
-    --binsize <bs>   Size of the bins for the histogram [default: 0.05]
-    --picname <pn>   DEPRECATED Name of the histogram plot [default: hist]
+    --binsize <bs>   Size of the bins for the histogram, CAREFUL WITH UNITS [default: 0.05]
     --beads <b>      Bead type, 'all' or 1,...,n [default: all]
     --smooth <sm>    Smooth the data with a given span [default: 5]
 
@@ -29,6 +28,8 @@ import os, glob, sys
 from docopt import docopt
 import mat_ops           # Fortran .so file
 
+bins = np.arange(0)
+
 def read_outfile(outfile):
     """Read one xyz outfile into a numpy matrix"""
     A = open(outfile, "r").readlines()[2:]
@@ -37,7 +38,7 @@ def read_outfile(outfile):
     return A
 
 
-def save_data(outfile, *args): #vec1, vec2):
+def save_data(outfile, *args):
     """Save two vectors into file"""
     m, n = len(args), len(args[0])   # cols, rows
     args = zip(*args)
@@ -96,30 +97,9 @@ def deriv2(data, h=0.1):
     return data2
 
 
-def get_one_rdf_old(outfile, dr=0.05, bead_type="all"):
-    """Compute radial dist'n fcn from the xyz matrix using Python"""
-    A = read_outfile(outfile)
-    if bead_type == "all":
-        xyz_mat = A[:, 1:]
-    else:
-        xyz_mat = A[A[:, 0] == int(bead_type)][:, 1:]
-    N = len(xyz_mat)
-    Npairs = N*(N-1)/2
-    d = np.zeros(Npairs)
-    here = 0
-    for i in range(N):
-        for j in range(i+1, N):
-            d[here] = norm(xyz_mat[i] - xyz_mat[j])
-            here += 1
-    bins = np.arange(0, 10+dr, dr)            # assume box size is 10
-    (rdf_raw, r, c) = plt.hist(d, bins=bins)  # c is useless here
-    r = r[:-1] + np.diff(r)/2.0
-    rdf = rdf_raw/(4*pi*r**2*dr)
-    return r, rdf
-
-
 def get_one_rdf(outfile, dr=0.05, bead_type="all"):
     """Compute radial dist'n fcn from the xyz matrix using Fortran routine"""
+    global bins
     A = read_outfile(outfile)
     if bead_type == "all":
         xyz_mat = A[:, 1:]
@@ -131,7 +111,8 @@ def get_one_rdf(outfile, dr=0.05, bead_type="all"):
     N = len(xyz_mat)
     d = mat_ops.get_pair_dist(xyz_mat)        # call Fortran
     print "Fortran routine done."
-    bins = np.arange(0, max_num+dr, dr)       # take box size as max entry of A
+    if len(bins) == 0:
+        bins = np.arange(0, max_num+dr, dr)       # take box size as max entry of A
     rdf_raw, r = np.histogram(d, bins=bins)
     r = r[:-1] + np.diff(r)/2.0
     rdf = rdf_raw/(4*pi*r**2*dr)
@@ -145,9 +126,9 @@ def get_master_rdf(outfiles, dr=0.05, bead_type="all"):
     for outfile in outfiles:
         r, rdf_i = get_one_rdf(outfile, dr, bead_type)
         rdf_mat.append(rdf_i)
-        print outfile, "done"
+        print outfile, "done."
     rdf_mat = np.array(rdf_mat).T
-    np.savetxt("rdf_mat.out", rdf_mat, fmt="%.0f", delimiter="\t")
+    np.savetxt("rdf_mat.out", rdf_mat)
     print "rdf matrix saved in rdf_mat.out"
     rdf = np.array(np.sum(rdf_mat, 1)/len(outfiles))
     return r, rdf
