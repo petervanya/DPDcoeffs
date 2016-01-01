@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    order_param.py calc <systems> <rc> [--save <fname>] [--gnuplot]
-    order_param.py plot <file>
+    order_param.py <systems> <dumpfiles> <rc> [--save <fname>] [--gnuplot]
 
 Calculate the order parameter for a binary mixture phase transition
 (number of AB contacts divited by number of AA plus BB contacts
@@ -10,6 +9,7 @@ Look for fA_*_AB_* dirs and collect all the dump files of the form "Dump/dump*.x
 
 Arguments:
     <systems>       The bin. mixture systems stored in dirs e.g. fA_0.1_AB_4.0, use regex
+    <dumpfiles>     Regex for the dumpfiles in the <systems>/Dump/ directory
     <rc>            Cutoff distance in which to consider pairing
 
 Options:
@@ -34,13 +34,20 @@ def read_dumpfile(dumpfile):
     return A
 
 
-def save_matrix(mat, fname):
-    m, n = mat.shape
-    with open(fname, "w") as f:
-        for i in range(m):
-            for j in range(n):
-                f.write(str(mat[i, j]) + "\t")
-            f.write("\n")
+def save_matrix(mat, fAs, ABs, fname):
+    """Save matrix with fAs array on the top and ABs next to the matrix"""
+    M, N = mat.shape
+    s = ""
+#    s += "1\t"   # arbitrary param at pos (0, 0)
+#    for i in range(N):
+#        s += str(fAs[i]) + "\t"
+#    s += "\n"
+    for i in range(M):
+#        s += str(ABs[i]) + "\t"
+        for j in range(N):
+            s += str(mat[i, j]) + "\t"
+        s += "\n"
+    open(fname, "w").write(s)
     print "Matrix written in file", fname
 
 
@@ -66,7 +73,7 @@ def get_average_op(dumpfiles, rc, fA):
 #        order_params.append(get_op(A, rc))                # common sense, NOT GOOD
 #        order_params.append(mat_ops.get_local_op(A, rc))   # Goyal thesis, calling Fortran
         n1, n2 = mat_ops.get_local_op2(A, rc)               # Goyal thesis, alternative call
-        n1, n2 = n1/fA, n2/(1-fA)                           # rescale to make sense
+#        n1, n2 = n1/fA, n2/(1-fA)                           # rescale to make sense
         op = float(np.dot(n1-n2, n1-n2))/np.dot(n1+n2, n1+n2)
         order_params.append(op)
     return np.average(order_params)
@@ -75,33 +82,31 @@ def get_average_op(dumpfiles, rc, fA):
 if __name__ == "__main__":
     args = docopt(__doc__)
 #    print args
+    rc = float(args["<rc>"])
+    systems = glob.glob(args["<systems>"])
+    dumpfiles = args["<dumpfiles>"]
 
-    if args["calc"]:
-        rc = float(args["<rc>"])
-        systems = glob.glob(args["<systems>"])
-        fAs = list(set([float(system.split("/")[0].split("_")[1]) for system in systems]))
-        ABs = list(set([float(system.split("/")[0].split("_")[3]) for system in systems]))
-        fAs.sort()
-        ABs.sort()
-        print fAs, "\n", ABs
+    fAs = list(set([float(system.split("/")[0].split("_")[1]) for system in systems]))
+    ABs = list(set([float(system.split("/")[0].split("_")[3]) for system in systems]))
+    fAs.sort()
+    ABs.sort()
+    print fAs, "\n", ABs
  
-        op_mat = np.zeros((len(ABs), len(fAs)))
-        for i in range(len(ABs)):
-            for j in range(len(fAs)):
-                system = "fA_" + str(fAs[j]) + "_AB_" + str(ABs[i])
-                path = os.path.join(os.path.expanduser("~/DPDcoeffs/BinMixt2"),\
-                       system, "Dump/dump9?00.xyz")  # MAKE THIS REGEX CMD LN OPTION
-                xyzfiles = glob.glob(path)
-                op_mat[i, j] = get_average_op(xyzfiles, rc, fAs[j])
-                if args["--gnuplot"]:
-                    print ABs[i], fAs[j], op_mat[i, j]
-        save_matrix(op_mat, args["--save"])
+    op_mat = np.zeros((len(ABs), len(fAs)))
+    for i in range(len(ABs)):
+        for j in range(len(fAs)):
+            system = "fA_" + str(fAs[j]) + "_AB_" + str(ABs[i])
+            path = os.path.join(os.getcwd(), system, "Dump", dumpfiles)
+            op_mat[i, j] = get_average_op(glob.glob(path), rc, fAs[j])
+            if args["--gnuplot"]:
+                print ABs[i], fAs[j], op_mat[i, j]
+    save_matrix(op_mat, fAs, ABs, args["--save"])
 
-    elif args["plot"]:   # NOT TESTED YET
-        data = np.loadtxt(args["<file>"])
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-        Axes3D.plot_surface(data)
-        plt.show()
+#    elif args["plot"]:   # NOT TESTED YET
+#        data = np.loadtxt(args["<file>"])
+#        fig = plt.figure()
+#        ax = fig.add_subplot(111, projection="3d")
+#        Axes3D.plot_surface(data)
+#        plt.show()
 
 
