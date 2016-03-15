@@ -109,11 +109,17 @@ def get_pair_coeffs_LJ(AA, BB, AB, r0):
     return s
 
 
-def get_pair_coeffs_DPD(AA, BB, AB):
+def get_pair_coeffs_DPD(params):   # part1 part2 force gamma cutoff
     s = "PairIJ Coeffs\n\n"
-    s += "1 1 " + str(AA) + "\n"
-    s += "2 2 " + str(BB) + "\n"
-    s += "1 2 " + str(AB) + "\n\n"
+    s += "1 1 " + str(params["1 1"][0]) + " " + str(params["1 1"][1]) + " " +\
+         str(params["1 1"][2]) + "\n"
+    s += "2 2 " + str(params["2 2"][0]) + " " + str(params["2 2"][1]) + " " +\
+         str(params["2 2"][2]) + "\n"
+    s += "1 2 " + str(params["1 2"][0]) + " " + str(params["1 2"][1]) + " " +\
+         str(params["1 2"][2]) + "\n\n"
+#    s += "1 1 " + str(AA) + " 1.0 \n"
+#    s += "2 2 " + str(BB) + " 1.0 \n"
+#    s += "1 2 " + str(AB) + " 1.0 \n\n"
     return s
 
 
@@ -173,7 +179,13 @@ if __name__ == "__main__":
     FAB = float(args["--FAB"])
     fname = args["--save"]
     np.random.seed(int(args["--seed"]))
+# DPD PARAMS
     m = 1.0          # PERHAPS SHOULD BE GIVEN AS CMD LN ARG
+    gamma = 1.0
+    cutoff = 1.0
+    pair_ij_coeffs = {"1 1": [FAA, gamma, cutoff],
+                      "2 2": [FAA, gamma, cutoff],
+                      "1 2": [FAB, gamma, cutoff]}
     
     final_atoms_str = ""  # for all molecules
     final_bonds_str = ""
@@ -195,7 +207,7 @@ if __name__ == "__main__":
 
     final_string = get_header(N*n, n*(N-1), L) + \
                    get_masses(m, m) + \
-                   get_pair_coeffs_DPD(FAA, FAA, FAB) + \
+                   get_pair_coeffs_DPD(pair_ij_coeffs) + \
                    "Atoms\n\n" + final_atoms_str + \
                    "Bonds\n\n" + final_bonds_str
 

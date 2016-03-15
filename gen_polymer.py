@@ -5,6 +5,7 @@
 
 Generate a binary mixture from A and B monomers: AA...ABB...B
 UNFINISHED
+LAMMPS atom_style molecular
 
 Arguments:
     <N>              Polymerisation (# of monomers)
@@ -13,8 +14,8 @@ Arguments:
 Options:
     --FAA <AA>       Force between AA (and BB) beads [default: 1.0]
     --FAB <AB>       Force between AB beads [default: 1.0]
-    --dist <a>       Initial distance between successive beads
-    --save <fname>   Save into file [default: poly.txt]
+    --dist <a>       Initial distance between successive beads [default: 0.1]
+    --save <fname>   Save into file
     --seed <s>       Random seed [default: 123]
     --boxsize <L>    Size of the simulation box L**3 [default: 10]
 
@@ -26,20 +27,24 @@ from xyzlib import Atoms
 
 
 def get_copoly_xyz(N, f, a, start=np.zeros(3), angles=[0, 0], sigma=0.1):
-    """generate the xyz matrix of the polymer with coordinates 
+    """
+    Generate the xyz matrix of the polymer with coordinates 
     wiggled by gaussian noise.
     Atom_style molecular
-    * sigma -- standard deviation for the noise"""
+    * sigma -- standard deviation for the noise
+    """
     NA = int(f*N)
     types = [1]*NA + [2]*(N-NA)
     coords = np.hstack(( np.zeros((N, 2)), np.matrix(np.linspace(0, (N-1)*a, N)).T ))  # z-coord
     xyz = Atoms(names=[], coords=coords)
     xyz.rotate(angles[0], angles[1])           # rotate the polymer
-    xyz.coords += np.random.randn(N, 3)*0.1    # gaussian noise
+    xyz.coords += np.random.randn(N, 3)*0.01    # gaussian noise
+#    xyz.coords[xyz.coords<0.0] = 0.0           # return leaking atoms to the box
     xyz.coords += start                        # shift
     xyz_mat = np.hstack((np.arange(1, N+1, dtype=int).reshape((N, 1)), \
                          np.ones((N, 1), dtype=int), np.ones((N, 1), dtype=int), \
                          xyz.coords))
+    xyz_mat[:, 0].astype(int)
     return xyz_mat
 
 
@@ -57,14 +62,13 @@ def get_header(xyz_mat, bond_mat, ang_mat=np.array([]), \
     s = "#blabla\n"
     s += str(len(xyz_mat)) + " atoms\n"
     s += str(len(bond_mat)) + " bonds\n"
-#    s += str(len(ang_mat)) + " angles\n"
-    s += "\n"
     s += str(len(set(xyz_mat[:, 1]))) + " atom types\n"   # select unique
     s += str(len(set(bond_mat[:, 1]))) + " bond types\n"
     s += "\n"
     s += "0.0 " + str(L) + " xlo xhi\n"
     s += "0.0 " + str(L) + " ylo yhi\n"
     s += "0.0 " + str(L) + " zlo zhi\n"
+    s += "\n"
     return s
 
 
@@ -87,6 +91,16 @@ def get_bond_coeffs(id_bondcoeffs):
     return s
 
 
+def atoms_to_str(mat):
+    """Convert atomic matrix to string"""
+    s = ""
+    M, N = mat.shape
+    for i in range(M):
+        # number, type, mass, x, y, z
+        s += "%i\t%i\t%.f\t%.6f\t%.6f\t%.6f\n" % tuple(mat[i])
+    return s
+
+
 def mat_to_str(mat):
     """Convert matrix to string"""
     s = ""
@@ -102,7 +116,7 @@ if __name__ == "__main__":
     args = docopt(__doc__)
 #    print args
     N = int(args["<N>"])
-    f = int(args["<f>"])
+    f = float(args["<f>"])
     a = float(args["--dist"])
     L = float(args["--boxsize"])
     FAA = float(args["--FAA"])
@@ -111,11 +125,17 @@ if __name__ == "__main__":
     seed = int(args["--seed"])
     np.random.seed(seed)
     
-    xyz_mat = get_copoly_xyz(N, f, a) 
+    xyz_mat = get_copoly_xyz(N, f, a, start=[2.0, 2.0, 0.0]) 
     bond_mat = get_copoly_bonds(N)
 
     final_string = get_header(xyz_mat, bond_mat) + \
-                   "\nAtoms\n\n" + mat_to_str(xyz_mat) + \
+                   get_masses({1: 1.0}) + \
+                   "\nAtoms\n\n" + atoms_to_str(xyz_mat) + \
                    "\nBonds\n\n" + mat_to_str(bond_mat)
-    
-    print final_string
+
+    if args["--save"]:
+        fname = args["--save"]
+        open(fname, "w").write(final_string)
+        print "Data file written in", fname
+    else:
+        print final_string
