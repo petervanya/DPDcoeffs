@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """Usage:
-    analyse_curves.py <infiles> <Efile> [--T <T>] [--plot]
+    analyse_curves.py <infiles> <Efile> [--T <T>] [--plot] [--fit [--cutoff <rc>]]
 
 Read in all the energy curves and produce 
 a temperature-weighted master curve
 
-DOCOPT FAIL: IF Options PRESENT "--T": "300". IF NOT "<T>": 300
-
 Options:
     --T <T>             Temperature [default: 300]
     --plot              Plot master curve
+    --fit               Fit the curve within a given distance cutoff
+    --cutoff <rc>       Distance cutoff for fitting [default: 6e-10]
 
 pv278@cam.ac.uk
 """
@@ -32,8 +32,8 @@ def get_master_curve(infiles, E, T):
     * E: (N, 2) array of blob number and energy
     * T: temperature
     """
-    final_curve = np.asarray(np.loadtxt(infiles[0]))
-    final_curve[:, 1] = 0.0
+    master_curve = np.asarray(np.loadtxt(infiles[0]))
+    master_curve[:, 1] = 0.0
     Z = 0.0             # normalisation constant
 
     for i in range(len(infiles)):
@@ -42,11 +42,20 @@ def get_master_curve(infiles, E, T):
         c = np.loadtxt(infiles[i])
         scaled_E = (E[blob1, 1] + E[blob2, 1])/E[0, 1]  # rescale arbitrarily to prevent overflow
         boltzmann_fact = np.exp(-(scaled_E / (kB*T/J_eV)) )
-        final_curve[:, 1] += (c[:, 1] - (E[blob1, 1] + E[blob2, 1])) * boltzmann_fact
+        master_curve[:, 1] += (c[:, 1] - (E[blob1, 1] + E[blob2, 1])) * boltzmann_fact
         Z += boltzmann_fact
     
-    final_curve[:, 1] /= Z
-    return final_curve
+    master_curve[:, 1] /= Z
+    return master_curve
+
+
+def fit_curve(mc, cutoff):
+    """Fit master curve by a quadratic function
+    Arguments:
+    cutoff: discard all values beyond this one"""
+    new_c = mc[mc[:, 0] <= cutoff]
+    coeffs = np.polyfit(new_c[:, 0], new_c[:, 1], 2)
+    return coeffs
 
 
 if __name__ == "__main__":
@@ -59,20 +68,29 @@ if __name__ == "__main__":
     if not infiles:
         print "No files captured, aborting."
         sys.exit()
-#    print infiles
 
-    final_curve = get_master_curve(infiles, energies, T)
-    final_curve[:, 0] *= m_AA
-    final_curve[:, 1] *= J_eV
+    master_curve = get_master_curve(infiles, energies, T)
+    master_curve[:, 0] *= m_AA
+    master_curve[:, 1] *= J_eV
     
-    print final_curve
+    print master_curve
     outname = "master_curve.out"
-    np.savetxt(outname, final_curve)
+    np.savetxt(outname, master_curve)
     print "Master curve saved in", outname
+    
+    if args["--fit"]:
+        cutoff = float(args["--cutoff"])
+        print "Fitting curve, cutoff:", cutoff
+        coeffs = fit_curve(master_curve, cutoff)
+        print "Fit:", coeffs
+
 
     if args["--plot"]:
-        plt.plot(final_curve[:, 0], final_curve[:, 1])
-        plotname = "plot_final_curve.png"
+        plt.plot(master_curve[:, 0], master_curve[:, 1])
+        plt.plot(master_curve[:, 0], np.polyval(coeffs, master_curve[:, 0]), "r-")
+        plt.xlim([4e-10, 8e-10])
+        plt.ylim([0.0, 1e-19])
+        plotname = "plot_master_curve.png"
         plt.savefig(plotname)
         print "Plot of master curve saved in", plotname
  
