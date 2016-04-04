@@ -38,12 +38,7 @@ def save_matrix(mat, fAs, ABs, fname):
     """Save matrix with fAs array on the top and ABs next to the matrix"""
     M, N = mat.shape
     s = ""
-#    s += "1\t"   # arbitrary param at pos (0, 0)
-#    for i in range(N):
-#        s += str(fAs[i]) + "\t"
-#    s += "\n"
     for i in range(M):
-#        s += str(ABs[i]) + "\t"
         for j in range(N):
             s += str(mat[i, j]) + "\t"
         s += "\n"
@@ -86,8 +81,8 @@ if __name__ == "__main__":
     systems = glob.glob(args["<systems>"])
     dumpfiles = args["<dumpfiles>"]
 
-    fAs = list(set([float(system.split("/")[0].split("_")[1]) for system in systems]))
-    ABs = list(set([float(system.split("/")[0].split("_")[3]) for system in systems]))
+    fAs = list(set([float(sys.split("/")[0].split("_")[1]) for sys in systems]))
+    ABs = list(set([float(sys.split("/")[0].split("_")[3]) for sys in systems]))
     fAs.sort()
     ABs.sort()
     print fAs, "\n", ABs
@@ -102,7 +97,8 @@ if __name__ == "__main__":
                 print ABs[i], fAs[j], op_mat[i, j]
     save_matrix(op_mat, fAs, ABs, args["--save"])
 
-#    elif args["plot"]:   # NOT TESTED YET
+# NOT TESTED YET
+#    elif args["plot"]:
 #        data = np.loadtxt(args["<file>"])
 #        fig = plt.figure()
 #        ax = fig.add_subplot(111, projection="3d")
