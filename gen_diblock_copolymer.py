@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Usage:
     gen_polymer.py <N> <f> [--L <L>] [--rho <rho>] [--aii <aii>] [--aij <aij>]
-                           [--save <fname>] 
+                           [--save <fname>] [--xyz <xyz>]
 
 Generate a binary mixture from A and B monomers: AA...ABB...B
 
@@ -11,10 +11,11 @@ Arguments:
 
 Options:
     --L <L>          Size of the simulation box L**3 [default: 10]
-    --rho <rho>      Density of the system [default: 3.0]
+    --rho <rho>      Density of the system [default: 5.0]
     --aii <aii>      Coefficient between same beads [default: 15.0]
     --aij <aij>      Coefficient between different beads [default: 21.0]
     --save <fname>   Output save file
+    --xyz <xyz>      Create xyz file
 
 pv278@cam.ac.uk, 15/03/16
 """
@@ -26,7 +27,7 @@ import lmp_lib as ll
 
 def grow_polymer(L, f, n, Nc, mu=1.0, sigma=0.1):
     """Generate coordinates of matrix polymer chains (taken from gen_pmma.py)
-    return (5, n*Nc) matrix, columns: [mol_ids, bead_type, xyz]
+    return (n*Nc, 5) matrix, columns: [mol_ids, bead_type, xyz]
     Input:
     * L: cubic box size
     * n: polymerisation
@@ -43,7 +44,7 @@ def grow_polymer(L, f, n, Nc, mu=1.0, sigma=0.1):
 
 
 def grow_one_chain(L, n, Nc, mu, sigma):
-    """Return (3,n) xyz matrix of one chain (taken from gen_pmma.py)"""
+    """Return (n, 3) xyz matrix of one chain (taken from gen_pmma.py)"""
     xyz = np.zeros((n, 3))
     xyz[0] = np.random.rand(3)*L
     for i in range(1, n):
@@ -52,8 +53,8 @@ def grow_one_chain(L, n, Nc, mu, sigma):
         r = mu + np.random.randn()*L*sigma
         new_bead_pos = [r*cos(theta), r*sin(theta)*cos(phi), r*sin(theta)*sin(phi)]
         xyz[i] = xyz[i-1] + new_bead_pos
-        xyz[i] = np.where(xyz[i] > L, L, xyz[i])       # set coord to L or 0 on the boundary
-        xyz[i] = np.where(xyz[i] < 0.0, 0.0, xyz[i])
+#        xyz[i] = np.where(xyz[i] > L, L, xyz[i])       # set coord to L or 0 on the boundary
+#        xyz[i] = np.where(xyz[i] < 0.0, 0.0, xyz[i])
     return xyz
 
 
@@ -110,6 +111,11 @@ if __name__ == "__main__":
         print "Data file written in", fname
     else:
         print final_string
+
+    if args["--xyz"]:
+        fname = args["--xyz"]
+        ll.save_xyzfile(fname, poly_xyz[:, 1:])
+        print "xyz file saved in", fname
 
 
 
