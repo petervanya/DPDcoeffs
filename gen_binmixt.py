@@ -85,7 +85,7 @@ if __name__ == "__main__":
     if args["--save"]:
         fname = args["--save"]
         open(fname, "w").write(final_string)
-        print "Data file written in", fname
+        print("Data file written in", fname)
     else:
-        print final_string
+        print(final_string)
 
