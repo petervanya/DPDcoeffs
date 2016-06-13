@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    gen_polymer.py <N> <f> [--L <L>] [--rho <rho>] [--aii <aii>] [--aij <aij>]
-                           [--save <fname>] [--xyz <xyz>]
+    gen_polymer.py <N> <f> [--L <L> --rho <rho> --save <fname> --xyz <xyz>]
 
 Generate a binary mixture from A and B monomers: AA...ABB...B
 
@@ -12,9 +11,7 @@ Arguments:
 Options:
     --L <L>          Size of the simulation box L**3 [default: 10]
     --rho <rho>      Density of the system [default: 5.0]
-    --aii <aii>      Coefficient between same beads [default: 15.0]
-    --aij <aij>      Coefficient between different beads [default: 21.0]
-    --save <fname>   Output save file
+    --save <fname>   Output save file [default: diblock.data]
     --xyz <xyz>      Create xyz file
 
 pv278@cam.ac.uk, 15/03/16
@@ -79,43 +76,38 @@ if __name__ == "__main__":
     f = float(args["<f>"])
     L = float(args["--L"])
     rho = float(args["--rho"])
-    a_ii = float(args["--aii"])
-    a_ij = float(args["--aij"])
-    fname = args["--save"]
     np.random.seed(1234)
 
-    Nb = rho * L**3
+    Nb = int(rho * L**3)
     Nc = int(Nb/N)
     rc = 1.0
+    mu, sigma = rc/2.0, rc/10.0
     
-    print "=== Creating LAMMPS data file for diblock copolymer melt ==="
-    print "Set interaction params in the input file"
-    print "Box size:", L, "| Density:", rho, "| Polymerisation:", N, "| A beads fraction:", f
+    print("=== Creating LAMMPS data file for diblock copolymer melt ===")
+    print("Set interaction params in the input file")
+    print("Box size:", L, "| Density:", rho, "| Polymerisation:", N, "| A beads fraction:", f)
     
-    poly_xyz = grow_polymer(L, f, N, Nc, mu=rc/2, sigma=rc/10)  # SET mu CAREFULLY
+    poly_xyz = grow_polymer(L, f, N, Nc, mu, sigma)  # SET mu CAREFULLY
     xyz_str = ll.atoms2str(poly_xyz)
-    print len(poly_xyz), "beads created, density:", len(poly_xyz)/L**3
+    print(len(poly_xyz), "beads created, density:", len(poly_xyz)/L**3)
 
     bonds = gen_bonds(N, Nc)
     bonds_str = ll.bonds2str(bonds)
-    print len(bonds), "bonds created"
+    print(len(bonds), "bonds created")
 
     final_string = ll.header2str(len(poly_xyz), len(bonds), 2, 1, L) + \
                    ll.mass2str({1: 1.0, 2: 1.0}) + \
                    "\nAtoms\n\n" + xyz_str +  \
                    "\nBonds\n\n" + bonds_str
     
-    if args["--save"]:
-        fname = args["--save"]
-        open(fname, "w").write(final_string)
-        print "Data file written in", fname
-    else:
-        print final_string
+    fname = args["--save"]
+    open(fname, "w").write(final_string)
+    print("Data file written in", fname)
 
     if args["--xyz"]:
         fname = args["--xyz"]
         ll.save_xyzfile(fname, poly_xyz[:, 1:])
-        print "xyz file saved in", fname
+        print("xyz file saved in", fname)
 
 
 
