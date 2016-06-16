@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Usage:
-    gen_binmixt2.py [--f <f> --L <L> --rho <rho> --xyz]
+    gen_binmixt2.py [--f <f> --L <L> --rho <rho> --xyz --vel <T>]
 
 Create a LAMMPS data file for A/B binary mixture with fraction f of A beads.
 atom_style atomic
@@ -10,6 +10,7 @@ Options:
     --L <L>        Box size [default: 10]
     --rho <rho>    Density of the system [default: 3.0]
     --xyz          Create xyz file
+    --vel <T>      Initialise velocities at given temperature T
 
 pv278@cam.ac.uk, 13/06/16
 """
@@ -48,6 +49,16 @@ def atoms2str(names, xyz):
     return s
 
 
+def vel2str(vel):
+    """Convert atomic matrix to string"""
+    N = len(vel)
+    s = "Velocities\n\n"
+    for i in range(N):
+        s += "%i\t%f\t%f\t%f\n" % (i+1, vel[i, 0], vel[i, 1], vel[i, 2])
+    s += "\n"
+    return s
+
+
 if __name__ == "__main__":
     args = docopt(__doc__)
     np.random.seed(1234)
@@ -69,6 +80,12 @@ if __name__ == "__main__":
     final_string = header + \
                    mass2str(1.0, 1.0) + \
                    atoms2str(names, xyz)
+
+    if args["--vel"]:
+        T = float(args["--vel"])
+        print("Initialising velocities, temperature: %.1f" % T)
+        vel = np.random.randn(N, 3)*T
+        final_string += vel2str(vel)
 
     fname = "binmixt.data"
     open(fname, "w").write(final_string)
