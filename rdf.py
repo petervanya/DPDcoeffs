@@ -8,6 +8,7 @@ Read all LAMMPS data files in the directory and compute the pair correlation fun
 Uses Fortran routines from mat_ops.f95 produced with f2py.
 * gen_data  generate the histogram of distances and save it in rdf.out
 * plot      plot rdf.out
+WARNING: PBC ARE NOT CORRECTLY IMPLEMENTED
 
 Arguments:
     <fnames>         Regex for all the required xyz files
@@ -60,7 +61,7 @@ def plot_hist(r, vals, picname="hist.png", title="title", which="all", ymax=1000
     plt.ylabel("$g(r)$")
     plt.title(title)
     plt.savefig(picname)
-    print "rdf saved into", picname
+    print("rdf saved into", picname)
 
 
 def plot_deriv2(r, vals, picname="deriv2.png", title="title", which="all"):
@@ -70,7 +71,7 @@ def plot_deriv2(r, vals, picname="deriv2.png", title="title", which="all"):
     plt.xlabel("$r$ (DPD units)")
     plt.title(title)
     plt.savefig(picname)
-    print "2nd derivative saved into", picname
+    print("2nd derivative saved into", picname)
 
 
 def smooth(data, span=5):
@@ -107,10 +108,10 @@ def get_one_rdf(outfile, dr=0.05, bead_type="all"):
         xyz_mat = A[A[:, 0] == int(bead_type)][:, 1:]
     max_num = np.max(xyz_mat)
     if dr > max_num:
-        print "WARNING: Bin size larger that box size: %e vs %e" % (dr, max_num)
+        print("WARNING: Bin size larger that box size: %e vs %e" % (dr, max_num))
     N = len(xyz_mat)
     d = mat_ops.get_pair_dist(xyz_mat)        # call Fortran
-    print "Fortran routine done."
+    print("Fortran routine done.")
     if len(bins) == 0:
         bins = np.arange(0, max_num+dr, dr)       # take box size as max entry of A
     rdf_raw, r = np.histogram(d, bins=bins)
@@ -126,10 +127,10 @@ def get_master_rdf(outfiles, dr=0.05, bead_type="all"):
     for outfile in outfiles:
         r, rdf_i = get_one_rdf(outfile, dr, bead_type)
         rdf_mat.append(rdf_i)
-        print outfile, "done."
+        print(outfile, "done.")
     rdf_mat = np.array(rdf_mat).T
     np.savetxt("rdf_mat.out", rdf_mat)
-    print "rdf matrix saved in rdf_mat.out"
+    print("rdf matrix saved in rdf_mat.out")
     rdf = np.array(np.sum(rdf_mat, 1)/len(outfiles))
     return r, rdf
 
@@ -142,16 +143,16 @@ if __name__ == "__main__":
         bead_type = args["--beads"]
         outfiles = glob.glob(args["<fnames>"])
         if len(outfiles) == 0:
-            print "ERROR: No xyz files found. Aborting."
+            print("ERROR: No xyz files found. Aborting.")
             sys.exit()
-        print outfiles
+        print(outfiles)
         Nfiles = len(outfiles)
         N = int(open(outfiles[0], "r").readline())
-        print "Total particles:", N
+        print("Total particles:", N)
         r, vals = get_master_rdf(outfiles, dr, bead_type)
         fname = "rdf_" + bead_type + ".out"
         save_data(fname, r, vals)
-        print "rdf saved in", fname
+        print("rdf saved in", fname)
 
     elif args["plot"] and args["hist"]:   # reads rdf.out and creates histograms
         outfiles = glob.glob(args["<fnames>"])
@@ -178,7 +179,7 @@ if __name__ == "__main__":
 
     elif args["plot"] and args["deriv2"]:   # reads rdf.out and plots 2nd derivative of histograms
         outfiles = glob.glob(args["<fnames>"])
-        print outfiles
+        print(outfiles)
         for outfile in outfiles:
             A = np.loadtxt(outfile)
             r, vals = A[:, 0], A[:, 1]
