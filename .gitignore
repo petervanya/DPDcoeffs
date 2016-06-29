@@ -9,7 +9,6 @@
 *.log
 *.xyz
 Runs/
-Old/
 Logs/
 combine.py
 filter_unrun.py
