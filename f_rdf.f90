@@ -16,37 +16,50 @@ subroutine dist_vec(xyz, n, cell, a)
     real(dp), intent(in) :: cell(3, 3)
     real(dp) :: inv_cell(3, 3)
     real(dp) :: g(3), dr(3)
-    integer(kind=8) :: i, j, cnt
     real(dp) :: dist
+    integer(kind=8) :: i, j, cnt
 
-    inv_cell = cell/cell(1, 1)**2 ! valid only for cubic o.g. cells
+    inv_cell = cell/cell(1, 1)**2 ! valid only for cubic  cells
+
+    do i = 1, 3
+        print *, cell(i, :)
+    enddo
  
     cnt = 1
     do i = 1, n
         do j = i+1, n
-            dr = xyz(i, :) - xyz(j, :)
+            dr(:) = xyz(i, :) - xyz(j, :)
             g = mat_vec_mul(inv_cell, dr)
             g = g - nint(g)
-            dist = sqrt(sum( mat_vec_mul(cell, g)**2 ))
-            a(cnt) = dist
+            a(cnt) = sqrt(sum( mat_vec_mul(cell, g)**2 ))
             cnt = cnt + 1
         enddo
     enddo
 end subroutine
 
 
-subroutine pair_dist_arr_2mat(xyz1, n1, xyz2, n2, a)
+subroutine dist_vec_2mat(xyz1, n1, xyz2, n2,  cell, a)
 ! generate pairs of mutual distances for two xyz matrices
-! 09/01/16
+! with periodic boundary conditions
+! 29/06/16
     integer(kind=8), intent(in) :: n1, n2
     real(dp), intent(in) :: xyz1(n1, 3), xyz2(n2, 3)
     real(dp), intent(out) :: a(n1*n2)
+    real(dp), intent(in) :: cell(3, 3)
+    real(dp) :: inv_cell(3, 3)
+    real(dp) :: g(3), dr(3)
+    real(dp) :: dist
     integer(kind=8) :: i, j, cnt
 
+    inv_cell = cell/cell(1, 1)**2 ! valid only for cubic  cells
+ 
     cnt = 1
     do i = 1, n1
         do j = 1, n2
-            a(cnt) = sqrt(sum((xyz1(i, :) - xyz2(j, :))**2))
+            dr(:) = xyz1(i, :) - xyz2(j, :)
+            g = mat_vec_mul(inv_cell, dr)
+            g = g - nint(g)
+            a(cnt) = sqrt(sum( mat_vec_mul(cell, g)**2 ))
             cnt = cnt + 1
         enddo
     enddo  
@@ -63,7 +76,6 @@ subroutine dist_vec_cut(xyz, n, rc, l, cell, a, n_a)
 ! * l: box size
 ! * rc: cutoff
 ! * cell: (3, 3) matrix of cell vectors to check for nearest images
-!
 ! Output:
 ! * a: distance vector of size (n_a)
 ! 05/04/16
@@ -92,7 +104,6 @@ subroutine dist_vec_cut(xyz, n, rc, l, cell, a, n_a)
             if (dist < rc) then
                 a(cnt) = dist
                 cnt = cnt + 1
-!                if (mod(cnt, 1000) == 0) print *, cnt
             endif
         enddo
     enddo
@@ -168,32 +179,34 @@ subroutine histogram(a, n, n_b, hist, bins)
 end subroutine
 
 
-subroutine pair_dist_hist(xyz, n, n_b, hist, bins)
+subroutine pair_dist_hist(xyz, n, n_b, cell, hist, bins)
 ! putting functions pair_dist_mat and histogram together
 ! 10/01/16
     integer(kind=8), intent(in) :: n, n_b
     real(dp), intent(in) :: xyz(n, 3)
+    real(dp), intent(in) :: cell(3, 3)
     real(dp) :: a(n*(n-1)/2)
     integer(kind=8), intent(out) :: hist(n_b)
     real(dp), intent(out) :: bins(n_b+1)
 
-    call pair_dist_arr(xyz, n, a)
+    call dist_vec(xyz, n, cell, a)
     call histogram(a, n*(n-1)/2, n_b, hist, bins)
 end subroutine
 
 
-subroutine pair_dist_hist_2mat(xyz, n, xyz2, n2, n_b, hist, bins)
+subroutine pair_dist_hist_2mat(xyz1, n1, xyz2, n2, n_b, cell, hist, bins)
 ! putting functions pair_dist_mat2 and histogram together
 ! 10/01/16
-    integer(kind=8), intent(in) :: n, n2, n_b
-    real(dp), intent(in) :: xyz(n, 3)
+    integer(kind=8), intent(in) :: n1, n2, n_b
+    real(dp), intent(in) :: xyz1(n1, 3)
     real(dp), intent(in) :: xyz2(n2, 3)
-    real(dp) :: a(n*n2)
+    real(dp), intent(in) :: cell(3, 3)
+    real(dp) :: a(n1*n2)
     integer(kind=8), intent(out) :: hist(n_b)
     real(dp), intent(out) :: bins(n_b+1)
 
-    call pair_dist_arr_2mat(xyz, n, xyz2, n2, a)
-    call histogram(a, n*n2, n_b, hist, bins)
+    call dist_vec_2mat(xyz1, n1, xyz2, n2, cell, a)
+    call histogram(a, n1*n2, n_b, hist, bins)
 end subroutine
 
 
