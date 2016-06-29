@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Usage:
-    gen_binmixt2.py [--f <f> --L <L> --rho <rho> --xyz --vel <T>]
+    gen_binmixt.py [--f <f> --L <L> --rho <rho> --xyz --vel <T>]
 
 Create a LAMMPS data file for A/B binary mixture with fraction f of A beads.
-atom_style atomic
+LAMMPS atom_style: atomic.
 
 Options:
     --f <f>        Fraction of A beads [default: 0.5]
@@ -44,7 +44,8 @@ def atoms2str(names, xyz):
     N = len(xyz)
     s = "Atoms\n\n"
     for i in range(N):
-        s += "%i\t%i\t%f\t%f\t%f\n" % (i+1, names[i], xyz[i, 0], xyz[i, 1], xyz[i, 2])
+        s += "%i\t%i\t%f\t%f\t%f\n" % \
+             (i+1, names[i], xyz[i, 0], xyz[i, 1], xyz[i, 2])
     s += "\n"
     return s
 
