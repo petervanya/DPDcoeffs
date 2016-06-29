@@ -20,10 +20,6 @@ subroutine dist_vec(xyz, n, cell, a)
     integer(kind=8) :: i, j, cnt
 
     inv_cell = cell/cell(1, 1)**2 ! valid only for cubic  cells
-
-    do i = 1, 3
-        print *, cell(i, :)
-    enddo
  
     cnt = 1
     do i = 1, n
