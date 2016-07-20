@@ -20,3 +20,8 @@ Scripts:
 * `gen_binmixt.py`
 * `gen_random_poly.py`
 * `order_param.py`
+
+## Dependencies
+* Python3: `sudo pip3 install numpy docopt`
+
+Compile `f_rdf.f90` using `f2py3 -c f_rdf.f90 -m f_rdf`
